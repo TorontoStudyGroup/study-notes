@@ -8,3 +8,166 @@ last_update:
 ---
 
 # Chapter 1: Scale From Zero to Millions of Users
+
+:::note
+Designing a system that can support millions of users is a challenge.
+:::
+
+## Single Server
+
+This is the simplest architecture diagram:
+
+![Single Server Architecture](./images/ch1-1.png)
+
+Request process diagram:
+
+![Single Server Request Process](./images/ch1-2.png)
+
+- **All components hosted on a same machine**: web server, application server, database, cache, etc.
+- **Typical Request Process**:
+
+  1.  DNS resolution to find the server's IP address.
+  2.  Browser / APP directly sends HTTP request to the server though the IP address.
+  3.  Server processes the request and responds with HTML, JSON, or other data formats. (JSON is commonly used for APIs.)
+
+            ```
+            GET /api/v1/users/123 HTTP/1.1
+            {
+              "id": 123,
+              "name": "John Smith",
+              "email": "john.smith@example.com",
+              "phone": "123-456-7890",
+            }
+            ```
+
+### Advantages and Disadvantages
+
+- **Advantages**:
+
+  - Simple to set up and manage
+  - Low cost for small-scale applications
+  - Easy to develop and test locally
+
+- **Disadvantages**:
+  - Limited scalability
+  - Performance bottlenecks
+  - Single point of failure, no redundancy
+
+## Database
+
+![Database Architecture](./images/ch1-3.png)
+
+- Separate web server and database server allows to adjust resources independently.
+
+### Compare Database Types
+
+1. **Relational Database (RDBMS)**:
+
+- Structured data with predefined schema
+- Supports SQL queries
+- ACID properties for data integrity
+- Examples: PostgreSQL, MySQL, Oracle
+
+2. **NoSQL Database**:
+
+- Unstructured data
+- Flexible schema, can handle large volumes of data
+- Low latency for applications
+- Examples: MongoDB, Cassandra, Neo4j
+
+:::info
+**ACID**
+
+> ACID is the four core properties of database transactions.
+
+- **Atomicity**: All operations in a transaction are completed successfully or none at all.
+- **Consistency**: The database remains in a valid state before and after the transaction.
+- **Isolation**: Transactions are isolated from each other, preventing interference.
+- **Durability**: Once a transaction is committed, it remains in the database even in the event of a system failure.
+
+:::
+
+## Vertical scaling vs horizontal scaling
+
+|                   | **Vertical Scaling** (Scale-Up)                 | **Horizontal Scaling** (Scale-Out)               |
+| ----------------- | ----------------------------------------------- | ------------------------------------------------ |
+| **Method**        | Add more CPU/RAM to a single server             | Add more nodes (servers) to the system           |
+| **Advantages**    | Simple to implement, no need for data sharding  | No hardware limits, built-in redundancy          |
+| **Disadvantages** | Physical limits, single point of failure (SPOF) | More complex deployment, requires load balancing |
+
+## Load Balancer
+
+Single entry point IP that distributes traffic evenly to multiple servers.
+
+![Load Balancer Architecture](./images/ch1-4.png)
+
+- Automatic failover
+- Flexible add or remove servers on demand
+- Internal servers communicate using private IPs, enhancing security
+
+## Database Replication
+
+- **Master**: Handles all write operations(Insert, Update, Delete), replicates data to slaves
+- **Slave**: Read only; typically, there are more slaves than masters
+
+![Database Replication Architecture](./images/ch1-5.png)
+
+### Advantages and Disadvantages
+
+- **Advantages**:
+  - Read-write separation improves performance
+  - Improved read performance
+  - Data redundancy
+  - Fault tolerance
+- **Disadvantages**:
+  - Replication lag
+  - Write bottleneck
+  - Application complexity
+  - Increased cost
+
+![Database Replication Architecture With Load Balancer](./images/ch1-6.png)
+
+## Cache Layer
+
+:::tip
+This web server tier checks the cache first before querying the database.
+:::
+
+### Common Strategies
+
+- **Cache-Aside(Lazy Loading)**: Application checks cache first, if hit, return data; if miss, query database and update cache.
+  - **Pros**: Simple to implement, the cache only stores data that has been used or is frequently accessed.
+  - **Cons**: The initial read may have higher latency and could return outdated data.
+- **Read-Through**: Cache is updated automatically by cache system when data is read from the database.
+  - **Pros**: Logic in application is simplified, cache is always up-to-date.
+  - **Cons**: More complex to implement, requires cache system that supports this feature.
+- **Refresh-Ahead**: When the cache is accessed, the backend will synchronously update the data to extend the TTL.
+  - **Pros**: Avoid cache misses causing delays when TTL expires, ensures popular data is always available.
+  - **Cons**: Complex implementation, may lead to unnecessary updates if data is not accessed frequently.
+
+### Strategies Compare
+
+| Strategy Name | Cache Hit Logic                        | Responsible Party               | Latency Risk Points                             | Complexity |
+| ------------- | -------------------------------------- | ------------------------------- | ----------------------------------------------- | ---------- |
+| Cache‑Aside   | Application loads data on miss         | Application                     | Consistency of initial reading and updated data | Low        |
+| Read‑Through  | Cache layer auto-loads from DB on miss | Cache System                    | Slow on cache miss                              | Medium     |
+| Refresh‑Ahead | Background refresh before TTL expiry   | Cache System/Background Process | Waste if prediction is poor                     | High       |
+
+### Recommended Cache Strategies
+
+> Focus on optimizing read performance
+
+- For quickly implement and simple to maintain: **Cache-Aside**
+- For automatically handle misses and updates: **Read-Through**
+- For low latency and predictable data access patterns: **Refresh-Ahead**
+
+## Resources
+
+<ul>
+  <li>
+    <span>Cache Strategies</span>
+    <a href="https://medium.com/%40alxkm/caching-strategies-every-developer-should-learn-early-36c277b4a7d8" target="_blank">
+      https://medium.com/%40alxkm/caching-strategies-every-developer-should-learn-early-36c277b4a7d8
+    </a>
+  </li>
+</ul>
