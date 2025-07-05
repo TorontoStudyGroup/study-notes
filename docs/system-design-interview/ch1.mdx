@@ -141,7 +141,7 @@ This web server tier checks the cache first before querying the database.
 - **Read-Through**: Cache is updated automatically by cache system when data is read from the database.
   - **Pros**: Logic in application is simplified, cache is always up-to-date.
   - **Cons**: More complex to implement, requires cache system that supports this feature.
-- **Refresh-Ahead**: When the cache is accessed, the backend will synchronously update the data to extend the TTL.
+- **Refresh-Ahead**: When the cache is accessed, the backend will synchronously update the data to extend the TTL (Time To Live).
   - **Pros**: Avoid cache misses causing delays when TTL expires, ensures popular data is always available.
   - **Cons**: Complex implementation, may lead to unnecessary updates if data is not accessed frequently.
 
@@ -160,6 +160,161 @@ This web server tier checks the cache first before querying the database.
 - For quickly implement and simple to maintain: **Cache-Aside**
 - For automatically handle misses and updates: **Read-Through**
 - For low latency and predictable data access patterns: **Refresh-Ahead**
+
+### Cache considerations
+
+- **When to use cache**: Cache data witch is frequently accessed and updated infrequently.
+- **Expiration Policy**: Set TTL to prevent outdated data.
+- **Consistency**: Ensure cache is updated when data changes in the database.
+- **Mitigating failures**: Use multiple cache servers or reserve memory to stabilize the system
+- **Eviction Policy**:
+  - **LRU (Least Recently Used)**(most popular): Evict the least recently accessed items first.
+  - **LFU (Least Frequently Used)**: Evict the least frequently accessed items first.
+  - **FIFO (First In First Out)**: Evict the oldest items first.
+
+## Content Delivery Network (CDN)
+
+:::info
+CDN is a distributed network of servers that delivers web content to users based on their geographic location.
+
+:::
+
+![CDN Architecture](./images/ch1-7.png)
+
+### Purpose
+
+Reduce latency and improve performance by caching static content closer to users.
+
+### How it works
+
+1. User requests content (e.g., images, videos, scripts).
+2. CDN routes the request to the nearest edge server.
+3. If the content is cached, it is served directly from the edge server.
+4. If not cached, the edge server fetches it from the origin server.
+
+### Benefits
+
+- Reduced latency
+- Improved load times
+- Offloads traffic from the origin server
+
+### Considerations
+
+- Cost: CDN services can be expensive, so low hit object should be excluded.
+- TTL: How long content is cached before checking for updates.
+
+## Stateful vs Stateless
+
+### Stateful
+
+Stateful server remembers the state of each user session from one request to the next.
+
+- How it works:
+  - The server stores session data in memory or a database.
+  - Each request includes a session identifier (e.g., cookie) to retrieve the session state.
+
+![Stateful Architecture](./images/ch1-8.png)
+
+### Stateless
+
+Stateless server does not remember and client state between requests.
+
+- How it works:
+  - The server does not store any session data, but provides the authentication token or user ID when the user logs in.
+  - Each request contains all necessary information to process it (e.g., authentication token, user ID).
+
+![Stateless Architecture](./images/ch1-9.png)
+
+## Data Center (DC)
+
+GeoDNS is used to route users to the nearest DC based on their geographic location.
+
+![DC Architecture](./images/ch1-10.png)
+
+In case of a major outage, all traffic can be routed to a healthy DC.
+
+![DC Architecture with outage](./images/ch1-11.png)
+
+### Technical Challenges
+
+- Traffic routing strategies
+- Cross-region data synchronization
+- Maintaining consistency between testing and deployment configurations
+
+## Message Queue (MQ)
+
+:::info
+MQ is a message queue is a durable component, stored in memory, that supports asynchronous
+communication
+
+:::
+
+![Message Queue Architecture](./images/ch1-12.png)
+
+### Main Concepts
+
+- **Producer**: Application that sends messages to the queue.
+- **Consumer**: Application that receives messages from the queue.
+- **Message**: Data sent from producer to consumer.
+
+### Pros
+
+- Decouples system components.
+- Buffer sudden surge in requests.
+- Allows individual components to scale independently.
+
+### Common Use Cases
+
+- Asynchronous processing (e.g., background, batch jobs)
+- Tasks take a long time to complete
+- Notification systems
+- Email or SMS sending
+
+## Logging, metrics, automation
+
+### Logging
+
+- **Purpose**: Monitor errors logs to identify issues in production.
+- **Tools**: ELK Stack (Elasticsearch, Logstash, Kibana)
+
+### Metrics
+
+- **Purpose**: Monitor system performance and health.
+- **Tools**: Grafana
+- **Key Metrics**:
+  - Host level (CPU, memory, disk I/O, etc.)
+  - Aggregated level (Cache hit rate, DB QPS, etc.)
+  - Request level (Latency, Error rate, etc.)
+  - KPIs for business (Active users, Retention rate, etc.)
+
+### Automation
+
+- **Purpose**: CI/CD, scaling, and monitoring.
+- **Tools**: Kubernetes, Terraform, GitHub Actions, Jenkins, etc.
+
+![Logging, Metrics, Automation Architecture](./images/ch1-13.png)
+
+## Database Scaling
+
+![Database Scaling](./images/ch1-14.png)
+
+### Vertical Scaling
+
+Scaling by adding more resources to a single database server. such as CPU, RAM, or Disk.
+
+### Horizontal Scaling
+
+Scaling by adding more database servers to distribute the load.
+
+## Millions of Users and Beyond
+
+1. Load Balancer + Stateless architecture
+2. Cache layer to reduce database load
+3. Support for multiple data centers
+4. Message Queues to decouple heavy tasks
+5. CDN for global static content delivery
+6. Split tiers into separate servers (Server, Database, Cache, etc.)
+7. Monitoring, logging, and automation for system health and performance
 
 ## Resources
 
