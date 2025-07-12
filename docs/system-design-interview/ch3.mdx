@@ -1,0 +1,102 @@
+---
+sidebar_position: 1
+slug: "/system-design-interview/ch3"
+description: "Chapter 3: A FRAMEWORK FOR SYSTEM DESIGN INTERVIEWS"
+last_update:
+  date: 2025-07-12
+  author: "Henry Tsao"
+---
+
+# Chapter 3: A FRAMEWORK FOR SYSTEM DESIGN INTERVIEWS
+
+:::note
+System design interviews are open-ended and test not just technical skills, but also your ability to ask the right questions, collaborate, and make sound trade-offs.
+:::
+
+## Key Takeaways
+
+- **System Design Interviews are Unique**
+  - There is no single correct answer.
+  - Communication, problem-solving, and clarifying ambiguity are as important as technical knowledge.
+  - The interviewer cares about your approach, not just your solution.
+
+- **The 4-Step Framework for System Design Interviews**
+
+  1. **Understand the Problem and Establish Scope**
+      - Don’t rush into a solution.
+      - Clarify requirements by asking targeted questions (features, users, scale, critical metrics, etc.).
+      - Explicitly state and record your assumptions.
+      - Example questions:  
+        - “What are the most important features?”
+        - “How many users do we need to support?”
+        - “Is this a mobile/web/both product?”
+        - “What is the expected scale in the next year?”
+
+  2. **Propose a High-Level Design and Get Buy-in**
+      - Draw a basic architecture diagram (clients, APIs, servers, data stores, cache, CDN, message queues, etc.).
+      - Discuss your proposed architecture and get feedback before deep-diving.
+      - Perform back-of-the-envelope estimation to validate feasibility.
+      - Work through concrete use cases to uncover edge cases and requirements.
+
+  3. **Design Deep Dive**
+      - Dive into one or two core components or flows, guided by interviewer interest.
+      - Discuss bottlenecks, scaling, trade-offs, and key algorithms.
+      - Stay focused on the most important architectural choices (e.g., data partitioning, consistency, fault tolerance).
+      - Avoid over-engineering or getting lost in unnecessary details.
+
+  4. **Wrap Up**
+      - Identify potential bottlenecks and propose improvements.
+      - Recap your design and key decisions.
+      - Discuss error cases, monitoring, deployment, and scaling to the next order of magnitude.
+      - Always mention there is room for improvement and propose next steps if time allows.
+
+---
+
+## Sample Interview Questions
+
+- “Can you walk me through how a user’s request is handled end-to-end?”
+- “How would your system handle X times more users?”
+- “What are the main bottlenecks or points of failure in your design?”
+- “How would you monitor and troubleshoot your system in production?”
+
+---
+
+## Dos and Don’ts
+
+### Dos
+
+- **Ask clarifying questions** before starting your design.
+- **Communicate your thought process** and assumptions clearly.
+- **Suggest multiple approaches** when possible.
+- **Focus on critical components** and scalability.
+- **Collaborate** with the interviewer as a teammate.
+- **Recap your design** at the end.
+
+### Don’ts
+
+- **Don’t jump into solutions** without understanding the problem.
+- **Don’t get stuck** in unnecessary details early on.
+- **Don’t remain silent**; always think aloud.
+- **Don’t say your design is perfect**; there is always room for improvement.
+
+---
+
+## Time Management Example (45-minute interview)
+
+| Step                        | Suggested Time      |
+|-----------------------------|--------------------|
+| Understand the Problem      | 3–10 minutes       |
+| High-Level Design           | 10–15 minutes      |
+| Deep Dive                   | 10–25 minutes      |
+| Wrap Up                     | 3–5 minutes        |
+
+---
+
+## Summary
+
+- System design interviews are as much about **collaboration and process** as the technical solution.
+- **Follow a framework** to stay organized, focused, and adaptable.
+- **Practice** asking good questions, estimating, and breaking down complex problems.
+
+---
+
