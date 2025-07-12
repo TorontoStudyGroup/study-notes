@@ -1,0 +1,85 @@
+---
+sidebar_position: 0
+slug: "/system-design-interview/ch2"
+description: "Chapter 2: BACK-OF-THE-ENVELOPE ESTIMATION"
+last_update:
+  date: 2025-07-12
+  author: "Henry Tsao"
+---
+
+# Chapter 2: BACK-OF-THE-ENVELOPE ESTIMATION
+
+:::note
+Back-of-the-envelope estimation is a key skill in system design interviews. The focus is on your reasoning and logic, not the exact result.
+:::
+
+## Key Takeaways
+
+- **What is Back-of-the-Envelope Estimation?**
+  - Quick, rough estimation to evaluate system capacity or performance requirements in the early design stage.
+  - The goal is not perfect accuracy, but a clear, logical estimation process, with all assumptions and units written down.
+
+- **Power of Two Basics**
+  - Know your data units (Byte, KB, MB, GB, TB, PB) and use powers of two for calculations.
+  - 1 Byte = 8 bits, 1 KB = 1024 Bytes, 1 MB = 1024 KB, and so on.
+
+- **Latency Numbers Every Programmer Should Know**
+  - Memory operations are extremely fast, disk and network are much slower.
+  - Example: L1 cache = a few ns, Disk seek = ms, Cross-region network = 100+ ms.
+  - Always compress data before sending over the network if possible; avoid frequent disk I/O.
+
+- **Availability Numbers (SLA, “Nines”)**
+  - High availability is often expressed in “nines” (e.g., 99.9%, 99.99% uptime).
+  - More nines = less downtime. For example, 99.9% means about 8.7 hours downtime per year.
+
+- **Example: Twitter QPS and Storage Estimation**
+  - **Assumptions:**
+    - 300M monthly active users
+    - 50% daily active
+    - 2 tweets/user/day
+    - 10% tweets contain media
+    - Store data for 5 years
+  - **Estimation:**
+    - DAU = 300M × 50% = 150M
+    - Tweet QPS = 150M × 2 / 24 / 3600 ≈ 3,500 QPS
+    - Peak QPS ≈ 7,000 QPS
+    - Media storage per day ≈ 30TB
+    - 5-year media storage ≈ 55PB
+
+- **Interview Tips**
+  - Focus on process, not the final number.
+  - Use round numbers and simple math (e.g., approximate 99987/9.1 as 100,000/10).
+  - Clearly state all assumptions.
+  - Always write down your units (e.g., 5 MB, 30 TB).
+  - Practice estimating QPS, storage, cache, and number of servers.
+
+---
+
+## Example: Twitter QPS and Storage Estimation
+
+**Assumptions:**
+- 300 million monthly active users
+- 50% daily active users
+- 2 tweets per user per day
+- 10% of tweets contain media
+- Store data for 5 years
+
+**Estimation:**
+- DAU = 300M × 50% = 150M
+- Tweet QPS = 150M × 2 / 24 / 3600 ≈ 3,500 QPS
+- Peak QPS ≈ 7,000 QPS
+- Media storage/day = 150M × 2 × 10% × 1MB = 30TB
+- 5-year media storage = 30TB × 365 × 5 = 55PB
+
+---
+
+## Tips for Effective Estimation
+
+- **Process is more important than the answer.** Show your logical reasoning and structured approach.
+- **Approximate when necessary.** Don’t get stuck on complex calculations.
+- **Write down all assumptions** so your thinking is transparent.
+- **Label every number with units** to avoid confusion.
+- **Practice with common topics**: QPS, peak QPS, storage, cache, number of servers, etc.
+
+---
+
