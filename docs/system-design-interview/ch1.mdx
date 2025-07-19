@@ -17,11 +17,11 @@ Designing a system that can support millions of users is a challenge.
 
 This is the simplest architecture diagram:
 
-![Single Server Architecture](./images/ch1-1.png)
+![Single Server Architecture](./images/ch1/ch1-1.png)
 
 Request process diagram:
 
-![Single Server Request Process](./images/ch1-2.png)
+![Single Server Request Process](./images/ch1/ch1-2.png)
 
 - **All components hosted on a same machine**: web server, application server, database, cache, etc.
 - **Typical Request Process**:
@@ -55,7 +55,7 @@ Request process diagram:
 
 ## Database
 
-![Database Architecture](./images/ch1-3.png)
+![Database Architecture](./images/ch1/ch1-3.png)
 
 - Separate web server and database server allows to adjust resources independently.
 
@@ -99,7 +99,7 @@ Request process diagram:
 
 Single entry point IP that distributes traffic evenly to multiple servers.
 
-![Load Balancer Architecture](./images/ch1-4.png)
+![Load Balancer Architecture](./images/ch1/ch1-4.png)
 
 - Automatic failover
 - Flexible add or remove servers on demand
@@ -110,7 +110,7 @@ Single entry point IP that distributes traffic evenly to multiple servers.
 - **Master**: Handles all write operations(Insert, Update, Delete), replicates data to slaves
 - **Slave**: Read only; typically, there are more slaves than masters
 
-![Database Replication Architecture](./images/ch1-5.png)
+![Database Replication Architecture](./images/ch1/ch1-5.png)
 
 ### Advantages and Disadvantages
 
@@ -125,7 +125,7 @@ Single entry point IP that distributes traffic evenly to multiple servers.
   - Application complexity
   - Increased cost
 
-![Database Replication Architecture With Load Balancer](./images/ch1-6.png)
+![Database Replication Architecture With Load Balancer](./images/ch1/ch1-6.png)
 
 ## Cache Layer
 
@@ -179,7 +179,7 @@ CDN is a distributed network of servers that delivers web content to users based
 
 :::
 
-![CDN Architecture](./images/ch1-7.png)
+![CDN Architecture](./images/ch1/ch1-7.png)
 
 ### Purpose
 
@@ -213,7 +213,7 @@ Stateful server remembers the state of each user session from one request to the
   - The server stores session data in memory or a database.
   - Each request includes a session identifier (e.g., cookie) to retrieve the session state.
 
-![Stateful Architecture](./images/ch1-8.png)
+![Stateful Architecture](./images/ch1/ch1-8.png)
 
 ### Stateless
 
@@ -223,17 +223,17 @@ Stateless server does not remember client state between requests.
   - The server does not store any session data, but provides the authentication token or user ID when the user logs in.
   - Each request contains all necessary information to process it (e.g., authentication token, user ID).
 
-![Stateless Architecture](./images/ch1-9.png)
+![Stateless Architecture](./images/ch1/ch1-9.png)
 
 ## Data Center (DC)
 
 GeoDNS is used to route users to the nearest DC based on their geographic location.
 
-![DC Architecture](./images/ch1-10.png)
+![DC Architecture](./images/ch1/ch1-10.png)
 
 In case of a major outage, all traffic can be routed to a healthy DC.
 
-![DC Architecture with outage](./images/ch1-11.png)
+![DC Architecture with outage](./images/ch1/ch1-11.png)
 
 ### Technical Challenges
 
@@ -249,7 +249,7 @@ communication
 
 :::
 
-![Message Queue Architecture](./images/ch1-12.png)
+![Message Queue Architecture](./images/ch1/ch1-12.png)
 
 ### Main Concepts
 
@@ -292,11 +292,11 @@ communication
 - **Purpose**: CI/CD, scaling, and monitoring.
 - **Tools**: Kubernetes, Terraform, GitHub Actions, Jenkins, etc.
 
-![Logging, Metrics, Automation Architecture](./images/ch1-13.png)
+![Logging, Metrics, Automation Architecture](./images/ch1/ch1-13.png)
 
 ## Database Scaling
 
-![Database Scaling](./images/ch1-14.png)
+![Database Scaling](./images/ch1/ch1-14.png)
 
 ### Vertical Scaling
 
