@@ -1,0 +1,84 @@
+---
+sidebar_position: 8
+slug: "/system-design-interview/ch8"
+description: "Chapter 8: Design A URL Shortener"
+last_update:
+  date: 2025-08-13
+  author: "Peter Fan"
+---
+
+import InterviewQuestion from "@site/src/components/InterviewQuestion";
+
+# Chapter 8: Design A URL Shortener
+
+:::note
+Designing a URL shortening service like tinyurl
+:::
+
+## Step 1 - Understand the problem and establish design scope
+- **Clarification questions**
+  - **Candidate**: Can you give an example of how a URL shortener work?
+  - **Interviewer**: Assume URL `https://www.systeminterview.com/q=chatsystem&c=loggedin&v=v3&l=long` is the original URL. Your service creates an alias with shorter length: `https://tinyurl.com/ y7keocwj`. If you click the alias, it redirects you to the original URL.
+  - **Candidate**: What is the traffic volume?
+  - **Interviewer**: `100 million` URLs are generated per day.
+  - **Candidate**: How long is the shortened URL?
+  - **Interviewer**: As short as possible.
+  - **Candidate**: What characters are allowed in the shortened URL?
+  - **Interviewer**: Shortened URL can be a combination of numbers `(0-9)` and characters `(a-z, AZ)`.
+  - **Candidate**: Can shortened URLs be deleted or updated?
+  - **Interviewer**: For simplicity, let us assume shortened URLs cannot be deleted or updated.
+  - **Here are the basic use cases**:
+    1. URL shortening: given a long URL => return a much shorter URL
+    2. URL redirecting: given a shorter URL => redirect to the original URL
+    3. High availability, scalability, and fault tolerance considerations
+- **Back of the envelope estimation**
+  - Write operation: 100 million URLs are generated per day.
+  - Write operation per second: 100 million / 24 /3600 = 1160
+  - Read operation: Assuming ratio of read operation to write operation is 10:1, read operation per second: 1160 * 10 = 11,600
+  - Assuming the URL shortener service will run for 10 years, this means we must support 100 million * 365 * 10 = 365 billion records.
+  - Assume average URL length is 100 bytes.
+  - Storage requirement over 10 years: 365 billion * 100 bytes * 10 years = 365 TB
+
+
+## Step 2 - Propose high-level design and get buy-in
+- **API Endpoints**
+  - API REST-style
+    1. URL shortening. To create a new short URL, a client sends a POST request, which contains one parameter: the original long URL. The API looks like this:
+      - `POST api/v1/data/shorten`
+        - request parameter: `{longUrl: longURLString}`
+        - return shortURL
+    2. URL redirecting. To redirect a short URL to the corresponding long URL, a client sends a GET request. The API looks like this:
+      - `GET api/v1/shortUrl`
+        - Return longURL for HTTP redirection
+- **URL redirecting**
+  - Once the server receives a tinyurl request, it changes the short URL to the long URL with 301 redirect.
+  ![URL redirecting](./images/ch8/ch8-1.png)
+  - The detailed communication between clients and servers
+  ![detailed communication](./images/ch8/ch8-2.png)
+  -  301 redirect vs 302 redirect
+      - 301 redirect
+        - shows that the requested URL is “permanently” moved to the long URL
+        - the browser caches the response, and subsequent requests for the same URL will not be sent to the URL shortening service
+        - requests are redirected to the long URL server directly
+        - ✅ Pros:
+          -  If the priority is to reduce the server load, using 301 redirect makes sense as only the first request of the same URL is sent to URL shortening servers.
+      - 302 redirect
+        - the URL is “temporarily” moved to the long URL
+        - subsequent requests for the same URL will be sent to the URL shortening service first. Then, they are redirected to the long URL server
+        - ✅ Pros:
+          - if analytics is important, 302 redirect is a better choice as it can track click rate and source of the click more easily
+  - Using hash tables
+      - Assuming the hash table stores `<shortURL, longURL>` pairs
+      - Get longURL: longURL = hashTable.get(shortURL)
+      - Once you get the longURL, perform the URL redirect.
+
+- **URL shortening**
+  - assume the short URL looks like this: `www.tinyurl.com/{hashValue}`
+  ![hash function](./images/ch8/ch8-3.png)
+  - The hash function must satisfy the following requirements:
+    - Each longURL must be hashed to one hashValue.
+    - Each hashValue can be mapped back to the longURL.
+
+
+## Step 3 - Design deep dive
+
