@@ -114,17 +114,6 @@ last_update:
 2. Write to in-memory **Memtable** (sorted structure).
 3. When Memtable is full → **flush** to immutable, sorted on-disk file: **SSTable**.
 
-### Compaction
-
-* Over time, many SSTables accumulate. **Compaction** merges them:
-
-  * Coalesce sorted runs, drop old versions & tombstones, reclaim space.
-* Common strategies:
-
-  * **STCS** (size-tiered): merge similarly sized files; write-heavy workloads.
-  * **LCS** (leveled): non-overlapping ranges per level; read-optimized.
-  * **TWCS** (time-window): group by time slices; great for time-series/logs.
-
 ## Read Path
 
 1. Check **Memtable** / row cache.
@@ -132,27 +121,6 @@ last_update:
 3. Read from candidate SSTables (and/or page cache), **merge** results (newest wins).
 4. Optionally perform **read repair** to update stale replicas.
 
-## Conflict Resolution Options
-
-* **Last-Write-Wins (timestamp)**: simplest, may lose concurrent updates.
-* **Vector clocks**: detect causality; app may merge divergent versions.
-* **Quorum result as truth**: majority/newest across R replies.
-* **App-level** merges (e.g., cart set-union).
-
-## Tuning Knobs (what you can discuss)
-
-* **N, R, W** (consistency, latency, fault tolerance).
-* **VNode count** (load spread vs metadata overhead).
-* **Compaction strategy** per workload.
-* **Consistency level per operation** (ALL, QUORUM, ONE, LOCAL\_QUORUM, etc.).
-* **Timeouts & retries**, **backpressure**, **repair cadence**, **hint TTL**.
-
-## Operational Concerns
-
-* **Rebalancing** when adding/removing nodes (token assignment, streaming progress).
-* **Hot-key mitigation** (token splitting, caching, client-side sharding).
-* **Multi-DC replication** (local quorum + async cross-DC).
-* **Observability**: p99 latency (read/write), pending compactions, dropped mutations, heap, GC, disk I/O, repair lag.
 
 ## Summary Table — Goal ↔︎ Technique
 
