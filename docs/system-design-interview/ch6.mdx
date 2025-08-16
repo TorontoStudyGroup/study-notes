@@ -1,14 +1,11 @@
 ---
-
-sidebar\_position: 6
+sidebar_position: 6
 slug: "/system-design-interview/ch6"
 description: "Chapter 6: Design a Key-Value Store"
-last\_update:
-date: 2025-08-16
-author: "Anderson Tsai"
------------------------
-
-import InterviewQuestion from "@site/src/components/InterviewQuestion";
+last_update:
+  date: 2025-08-16
+  author: "Nina"
+---
 
 # Chapter 6: Design a Key-Value Store
 
@@ -27,7 +24,6 @@ import InterviewQuestion from "@site/src/components/InterviewQuestion";
 * **A**vailability: every request receives a response (even during failures).
 * **P**artition tolerance: system continues despite network partitions.
 * In real distributed systems, **P is non-negotiable** → choose **CP** (favor C) or **AP** (favor A).
-  (https://learning-guide.gitbook.io/system-design-interview/~gitbook/image?url=https%3A%2F%2F1109063293-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252FwxhJ9WUUpWJawzwybG0f%252Fuploads%252Fgit-blob-b4ce9716b5d5aa6bb9127a3257fb90a3e7125a6a%252Ffigure6-1.jpg%3Falt%3Dmedia&width=768&dpr=4&quality=100&sign=5d358d96&sv=2)
 
   * **CP** example: banking balance during partition → may reject requests to keep C.
   * **AP** example: social counters → serve stale data; converge later (**eventual consistency**).
@@ -169,27 +165,3 @@ import InterviewQuestion from "@site/src/components/InterviewQuestion";
 | Durable & fast writes        | **Commit log** + **memtable** (LSM)                          |
 | Efficient reads              | **Bloom filters**, **compaction**, caching                   |
 | Handle heterogeneous servers | **Vnodes** proportional to capacity                          |
-
----
-
-<InterviewQuestion
-title="Warm-up Q"
-prompt="Explain how consistent hashing with virtual nodes enables automatic scaling when adding/removing machines."
-/>
-
-<InterviewQuestion
-title="Design Choice Q"
-prompt="With N=3, would you choose (W=1,R=3) or (W=2,R=2) for a social feed write path? Why?"
-/>
-
-<InterviewQuestion
-title="Failure Handling Q"
-prompt="During a partition, how do sloppy quorum and hinted handoff preserve availability without losing data placement guarantees?"
-/>
-
-<InterviewQuestion
-title="Storage Q"
-prompt="Walk through the LSM-tree write/read paths. Why are writes fast and what does compaction trade off?"
-/>
-
----
