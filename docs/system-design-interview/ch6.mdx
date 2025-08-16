@@ -1,0 +1,195 @@
+---
+
+sidebar\_position: 6
+slug: "/system-design-interview/ch6"
+description: "Chapter 6: Design a Key-Value Store"
+last\_update:
+date: 2025-08-16
+author: "Anderson Tsai"
+-----------------------
+
+import InterviewQuestion from "@site/src/components/InterviewQuestion";
+
+# Chapter 6: Design a Key-Value Store
+
+## Problem & Scope
+
+* **APIs**: `put(key, value)`, `get(key)` (and often `delete(key)`).
+* **Assumptions/targets**:
+
+  * Small item size (≤ \~10 KB), huge dataset, low latency.
+  * **High availability**, **horizontal scalability**, **automatic scaling**, **tunable consistency**.
+* **Trade-offs**: read vs write cost, memory vs disk, consistency vs availability (CAP).
+
+## CAP Theorem (framing)
+
+* **C**onsistency: all clients see the same data at the same time.
+* **A**vailability: every request receives a response (even during failures).
+* **P**artition tolerance: system continues despite network partitions.
+* In real distributed systems, **P is non-negotiable** → choose **CP** (favor C) or **AP** (favor A).
+  (https://learning-guide.gitbook.io/system-design-interview/~gitbook/image?url=https%3A%2F%2F1109063293-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252FwxhJ9WUUpWJawzwybG0f%252Fuploads%252Fgit-blob-b4ce9716b5d5aa6bb9127a3257fb90a3e7125a6a%252Ffigure6-1.jpg%3Falt%3Dmedia&width=768&dpr=4&quality=100&sign=5d358d96&sv=2)
+
+  * **CP** example: banking balance during partition → may reject requests to keep C.
+  * **AP** example: social counters → serve stale data; converge later (**eventual consistency**).
+
+## Data Partitioning
+
+### Consistent Hashing (ring)
+
+* Place **nodes** on a hash ring; place **keys** on the same ring.
+* A key lives on the **first node clockwise** from its hash position.
+* **Benefits**: minimal key movement when nodes join/leave; even spread with tuning.
+
+### Virtual Nodes (vnodes) & Heterogeneity
+
+* Map each physical server to **many ring positions**.
+* Give **more vnodes** to larger machines → proportional load.
+* Smooths hot spots; enables **automatic scaling** (add/remove nodes with minimal reshuffle).
+
+## Data Replication
+
+* Replication factor **N**: store each item on **N distinct physical servers**.
+* Placement: from key’s ring position, walk **clockwise**, pick the first **N unique servers**.
+* Purpose: **high availability & durability** (survive node/zone failures).
+
+## Quorum Consensus
+
+* Parameters: **N** replicas, **W** acks to commit a write, **R** replies to satisfy a read.
+* **Rule**: If **W + R > N**, a read is guaranteed to intersect a latest write.
+* Examples (N=3):
+
+  * **W=2, R=2** → balanced latency & consistency.
+  * **W=1, R=3** → fast writes, heavier reads.
+  * **W=3, R=1** → fast reads, slow writes; lower availability during failures.
+* Add-ons: **read repair** (fix stale replicas on reads), **write-back/repair** in background.
+
+## Coordinator Role
+
+* Any node receiving a client request temporarily acts as **coordinator**:
+
+  1. Hash key → determine replica set.
+  2. **Writes**: forward to replicas, wait for **W** ACKs, return success.
+  3. **Reads**: query **R** replicas, reconcile (newest/timestamp or vector clock), return value.
+
+## Consistency Models
+
+* **Strong consistency**: reads return the latest write.
+* **Weak consistency**: recent writes may not be visible.
+* **Eventual consistency**: a weak form where replicas **converge** given time.
+
+## Inconsistency Resolution (Versioning)
+
+* **Why needed**: With replication + AP preference, different replicas may temporarily hold conflicting versions.
+* **Naive option**: Last-write-wins via timestamp → simple, but may lose concurrent updates.
+* **Versioning**: Use **vector clocks** to track causal history of updates.
+
+  * Each object carries a vector clock: `(node_id, counter)` pairs.
+  * When updating, the coordinator increments its own counter and merges clocks.
+  * On read, if versions are causally related → discard older one.
+  * If **concurrent (no causal order)** → return multiple versions to client → client/app decides merge (e.g., cart union).
+* **Trade-off**: vector clocks prevent silent overwrite but increase metadata size (bounded in practice).
+
+## Failure Detection: Gossip
+
+* Each node keeps a **membership list** with **heartbeats**.
+* Periodically increment and **gossip** heartbeats to random peers; they relay further.
+* If a node’s heartbeat doesn’t advance for a grace period → **suspect/down**.
+
+## Handling **Temporary** Failures
+
+### Sloppy Quorum & Hinted Handoff
+
+* If a replica in the key’s preference list is **down**, write to the **next healthy node(s)** (sloppy quorum) and mark entries with **hints**.
+* When the original node recovers, peers **hand off** hinted updates to it, restoring placement.
+
+## Handling **Permanent** Failures
+
+### Anti-Entropy with Merkle Trees
+
+* Background process compares replicas using **Merkle trees**:
+
+  * Internal nodes store hashes of children; compare roots to detect divergence.
+  * Drill down only into mismatched subtrees → **minimize data transfer**.
+* Out-of-date ranges are synchronized to the newest version.
+
+## Write Path (LSM-Tree)
+
+1. **Append** to **Commit Log** (sequential disk write; crash-replay for durability).
+2. Write to in-memory **Memtable** (sorted structure).
+3. When Memtable is full → **flush** to immutable, sorted on-disk file: **SSTable**.
+
+### Compaction
+
+* Over time, many SSTables accumulate. **Compaction** merges them:
+
+  * Coalesce sorted runs, drop old versions & tombstones, reclaim space.
+* Common strategies:
+
+  * **STCS** (size-tiered): merge similarly sized files; write-heavy workloads.
+  * **LCS** (leveled): non-overlapping ranges per level; read-optimized.
+  * **TWCS** (time-window): group by time slices; great for time-series/logs.
+
+## Read Path
+
+1. Check **Memtable** / row cache.
+2. If miss, consult **Bloom filters** to skip SSTables that cannot contain the key.
+3. Read from candidate SSTables (and/or page cache), **merge** results (newest wins).
+4. Optionally perform **read repair** to update stale replicas.
+
+## Conflict Resolution Options
+
+* **Last-Write-Wins (timestamp)**: simplest, may lose concurrent updates.
+* **Vector clocks**: detect causality; app may merge divergent versions.
+* **Quorum result as truth**: majority/newest across R replies.
+* **App-level** merges (e.g., cart set-union).
+
+## Tuning Knobs (what you can discuss)
+
+* **N, R, W** (consistency, latency, fault tolerance).
+* **VNode count** (load spread vs metadata overhead).
+* **Compaction strategy** per workload.
+* **Consistency level per operation** (ALL, QUORUM, ONE, LOCAL\_QUORUM, etc.).
+* **Timeouts & retries**, **backpressure**, **repair cadence**, **hint TTL**.
+
+## Operational Concerns
+
+* **Rebalancing** when adding/removing nodes (token assignment, streaming progress).
+* **Hot-key mitigation** (token splitting, caching, client-side sharding).
+* **Multi-DC replication** (local quorum + async cross-DC).
+* **Observability**: p99 latency (read/write), pending compactions, dropped mutations, heap, GC, disk I/O, repair lag.
+
+## Summary Table — Goal ↔︎ Technique
+
+| Goal                         | Technique(s)                                                 |
+| ---------------------------- | ------------------------------------------------------------ |
+| Even data & easy scaling     | Consistent hashing, **vnodes**                               |
+| High availability            | Replication (N), **sloppy quorum**, hinted handoff           |
+| Tunable consistency          | **R/W/N** quorums, per-op consistency levels                 |
+| Detect/repair divergence     | **Gossip**, **read repair**, **anti-entropy (Merkle trees)** |
+| Durable & fast writes        | **Commit log** + **memtable** (LSM)                          |
+| Efficient reads              | **Bloom filters**, **compaction**, caching                   |
+| Handle heterogeneous servers | **Vnodes** proportional to capacity                          |
+
+---
+
+<InterviewQuestion
+title="Warm-up Q"
+prompt="Explain how consistent hashing with virtual nodes enables automatic scaling when adding/removing machines."
+/>
+
+<InterviewQuestion
+title="Design Choice Q"
+prompt="With N=3, would you choose (W=1,R=3) or (W=2,R=2) for a social feed write path? Why?"
+/>
+
+<InterviewQuestion
+title="Failure Handling Q"
+prompt="During a partition, how do sloppy quorum and hinted handoff preserve availability without losing data placement guarantees?"
+/>
+
+<InterviewQuestion
+title="Storage Q"
+prompt="Walk through the LSM-tree write/read paths. Why are writes fast and what does compaction trade off?"
+/>
+
+---
