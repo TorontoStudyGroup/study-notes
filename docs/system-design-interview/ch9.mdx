@@ -7,6 +7,8 @@ last_update:
   author: "Philly Chien"
 ---
 
+import InterviewQuestion from '@site/src/components/InterviewQuestion';
+
 # Chapter 9: Design a Web Crawler
 
 :::note
@@ -267,5 +269,146 @@ This final section covers advanced topics and other important aspects for buildi
 - Use insights from analytics to tune system behavior and improve efficiency.
 
 
+### Mid-Level Engineer Interview Questions
 
+<InterviewQuestion
+  level="mid"
+  question="Why do web crawlers typically use Breadth-First Search (BFS) over Depth-First Search (DFS)?"
+  hint="Think about the structure of the web as a graph. What happens if you follow one path as deep as possible versus exploring layer by layer? Consider the risk of getting &quot;stuck.&quot;"
+  answer="The web can be viewed as a large graph of pages (nodes) connected by links (edges).\n\n**The Problem with DFS:**\n- DFS explores a path to its absolute depth before backtracking.\n- A single site can have virtually infinite deep paths (e.g., dynamic calendars).\n- A DFS-based crawler could get stuck on one site for a very long time, missing the rest of the web.\n\n**The Advantage of BFS:**\n- Explores layer by layer starting from seed URLs (layer 0), then layer 1, 2, ...\n- Ensures broad discovery across many sites and pages.\n- Prevents getting trapped in one corner of the web.\n- The URL Frontier is essentially a queue that facilitates BFS traversal."
+/>
 
+<InterviewQuestion
+  level="mid"
+  question="Can you explain the main responsibilities of a URL Frontier? How does it differ from a simple queue?"
+  hint="A simple queue just follows FIFO (First-In-First-Out). What other important non-functional requirements, like politeness and importance, does a crawler need to manage?"
+  answer="A URL Frontier goes beyond basic FIFO, providing:\n\n- **Politeness management:** Avoids overloading any single host using host-based queues and enforced delays.\n- **Priority management:** Multiple priority queues so important pages (e.g., homepages) are crawled earlier.\n- **Large-scale storage:** Hybrid disk+memory design to handle billions of URLs efficiently.\n- **Coordination:** In distributed crawls, coordinates agents to prevent duplicate work."
+/>
+
+<InterviewQuestion
+  level="mid"
+  question="If you were asked to design a 'polite' crawler, how would you implement it to avoid making requests to the same website too frequently?"
+  hint="Think about how you would organize the URLs. Would a single, large queue work, or would you need a more granular structure to manage different websites?"
+  answer="Control the request rate on a per-host basis:\n\n- **Host-based queues:** Maintain per-host queues; a &quot;Queue Router&quot; assigns URLs by hostname (e.g., one for wikipedia.org, another for google.com).\n- **Throttled workers:** Each worker pulls from one host's queue and enforces a delay (e.g., 1s) between requests to that host."
+/>
+
+<InterviewQuestion
+  level="mid"
+  question="Why can DNS resolution become a bottleneck for a web crawler? How would you optimize it?"
+  hint="Consider the high volume of requests a crawler makes per second and the inherent latency of a network call. What can you do to avoid making the same external network call over and over again?"
+  answer="**Bottleneck:** Crawlers process hundreds/thousands of URLs per second. DNS lookups (hostname → IP) take ~10–200ms; doing one per URL adds massive latency.\n\n**Optimization:** Implement a local DNS cache. Check cache first; on miss, resolve and store with a TTL so subsequent requests avoid the external lookup."
+/>
+
+<InterviewQuestion
+  level="mid"
+  question="We need to avoid crawling the same URL twice and also avoid storing identical page content that comes from different URLs. How would you handle these two different kinds of duplication?"
+  hint="One type of duplication happens before downloading the content, and the other happens after. What data structures or techniques would be efficient for each step?"
+  answer="Handled at two stages:\n\n- **Duplicate URL prevention (&quot;URL Seen?&quot;):** Before scheduling. Use a Bloom filter or distributed hash set to detect previously seen URLs and discard them.\n- **Duplicate content prevention (&quot;Content Seen?&quot;):** After download. Hash the content (e.g., SHA-256) and check against a store of seen hashes; discard duplicates."
+/>
+
+<InterviewQuestion
+  level="mid"
+  question="What is robots.txt? Why is it essential for a crawler to respect it?"
+  hint="Think about the relationship between website owners and web crawlers. How do owners communicate rules to automated bots?"
+  answer="**What it is:** A standard text file at the domain root (e.g., `https://example.com/robots.txt`) that specifies which parts of a site specific user-agents may access.\n\n**Why it's essential:** The primary mechanism for administrators to control crawler traffic. Respecting it is core to politeness and ethical crawling, avoids sensitive/unnecessary pages, conserves resources, and prevents IP bans."
+/>
+
+<InterviewQuestion
+  level="mid"
+  question="What should a Crawler Agent do when it tries to download a URL, but the target server is unresponsive for a long time?"
+  hint="How do you prevent a single slow or dead server from blocking your entire crawling operation?"
+  answer="Never wait indefinitely:\n\n- **Short timeouts:** Enforce strict per-request timeouts (e.g., 2–5s); abort on timeout.\n- **Retry strategy:** Report to the Frontier and reschedule with exponential backoff; after repeated failures, discard the URL."
+/>
+
+<InterviewQuestion
+  level="mid"
+  question="When designing the 'URL Seen?' component, what data structures would you consider? What are their respective pros and cons?"
+  hint="You need to store and check for the existence of billions of URLs. What are the trade-offs between memory usage and 100% accuracy?"
+  answer="**Hash set / distributed hash table:**\n- Pros: 100% accuracy, O(1) average lookups.\n- Cons: Extremely high memory usage at web scale.\n\n**Bloom filter:**\n- Pros: Very memory-efficient, fast lookups.\n- Cons: Possible false positives (no false negatives); acceptable for crawlers."
+/>
+
+<InterviewQuestion
+  level="mid"
+  question="Please describe the complete lifecycle of a URL, from the moment it is discovered until its page content is stored."
+  hint="Walk through the high-level architecture diagram step-by-step. Start with link extraction and end with content storage."
+  answer="1. **Discovery:** URL Extractor finds a link while parsing a downloaded page.\n2. **Filtering:** URL Filter applies rules (blacklists, invalid formats).\n3. **URL dedup:** Check &quot;URL Seen?&quot;; if seen, stop.\n4. **Scheduling:** Add to URL Frontier with proper host and priority.\n5. **Downloading:** Agent picks URL, resolves DNS (cache first), downloads via HTTP.\n6. **Parsing:** Content Parser processes the HTML.\n7. **Content dedup:** Hash content and check &quot;Content Seen?&quot;; discard if duplicate.\n8. **Storage:** Save new content to Content Storage (e.g., S3).\n9. **Extraction:** Send content to URL Extractor to discover new links."
+/>
+
+<InterviewQuestion
+  level="mid"
+  question="What is a spider trap? Please give an example and explain how to avoid it."
+  hint="Think about ways a website could dynamically generate a seemingly infinite number of unique URLs. How can you put a hard limit on this behavior?"
+  answer="**What it is:** A site pattern that causes crawlers to generate endless requests for low-value pages.\n\n**Example:** Infinite calendars (e.g., .../cal/2098/10 → .../cal/2098/11), or faceted navigation producing many unique URLs with identical content.\n\n**Avoidance:** Set hard limits such as maximum URL length or path depth. The URL Filter discards URLs that exceed thresholds (e.g., length > 200 or depth > 10)."
+/>
+
+### Senior Engineer Interview Questions
+
+<InterviewQuestion
+  level="senior"
+  question="What are the pros and cons of designing page parsing as a separate microservice versus embedding the logic within the Crawler Agent? Which would you choose for a large-scale system and why?"
+  hint="Think about resource utilization profiles (CPU vs. I/O), independent scalability, and fault isolation."
+  answer="This evaluates architectural trade-offs.\n\n**Embedded in Crawler Agent**\n**Pros:** Simpler to start; lower latency between download and parse; straightforward initial deployment.\n**Cons:** Becomes a monolith. Downloading is I/O-bound while parsing is CPU-bound, forcing you to scale both together. A parsing bug or memory leak can crash the entire agent and halt downloads.\n\n**Separate Parser Microservice**\n**Pros:** Independently scale CPU-heavy parsers and I/O-heavy agents; better fault isolation; technology flexibility per service.\n**Cons:** More operational complexity; small extra network hop.\n\n**Conclusion:** At large scale, a separate Parser service is superior because it lets you scale CPU vs. I/O independently for better cost efficiency, resilience, and maintainability."
+/>
+
+<InterviewQuestion
+  level="senior"
+  question="Our current system handles 1 billion pages/month. The new goal is 100 billion/month. What new bottlenecks would you anticipate, and how would you evolve the architecture for 100x scale?"
+  hint="Beyond adding servers, consider central components that become single points of failure, and how data volume changes the problem."
+  answer="100x scale introduces qualitative changes.\n\n**Anticipated bottlenecks:**\n- **URL Frontier:** A single service cannot manage state/storage/throughput for trillions of URLs.\n- **&quot;URL Seen?&quot; / Dedupe:** A single Bloom filter or hash set becomes infeasible; memory balloons and false-positive rates rise.\n- **Network egress:** Bandwidth and cost can dominate; single-DC saturation risk.\n\n**Architecture evolution:**\n- **Federated/Sharded Frontier:** Shard by hostname hash or TLD; each shard manages its own queues/storage.\n- **Sharded dedupe:** Use the same sharding key as the Frontier for data locality.\n- **Geo-distribution:** Deploy regional clusters (US/EU/APAC) to reduce latency and optimize bandwidth costs."
+/>
+
+<InterviewQuestion
+  level="senior"
+  question="Discuss storage options for the URL Frontier. What are the trade-offs between in-memory, disk-based, or hybrid? How would you ensure data consistency under high concurrency?"
+  hint="Evaluate persistence, throughput, and capacity. For consistency, think about atomic leasing of a URL."
+  answer="**Trade-offs:**\n- **In-memory (e.g., Redis):** Extremely fast but volatile and expensive at scale.\n- **Disk-based (e.g., RDBMS):** Durable and cost-effective but too slow for high QPS.\n- **Hybrid (recommended):** Disk as source of truth (e.g., append-only log or LSM like RocksDB) with in-memory buffers for active queues; write-through/periodic flush.\n\n**Consistency under concurrency:**\n- Implement **visibility timeouts (leases):** Move URL to an invisible &quot;in-flight&quot; state for T seconds.\n- On success, agent ACKs to delete; on timeout, URL returns to pending. Ensures at-least-once processing similar to SQS."
+/>
+
+<InterviewQuestion
+  level="senior"
+  question="How do we ensure the freshness of crawled data? Design a strategy to decide when and how often to re-crawl a page."
+  hint="A single recrawl frequency is inefficient. Prioritize and use change signals."
+  answer="**Adaptive, priority-based strategy:**\n- **Prioritize by importance:** PageRank, traffic, sitemaps.\n- **Change history:** Track content hashes; estimate update frequency from change rate.\n- **Adaptive scheduling:** Maintain a recrawl priority queue; schedule URLs just before they are likely to change (e.g., Poisson model).\n- **Leverage sitemaps:** Use &lt;lastmod&gt;/&lt;changefreq&gt; as signals."
+/>
+
+<InterviewQuestion
+  level="senior"
+  question="If the master node of the URL Frontier or the entire service goes down, what is your disaster recovery plan to minimize data loss and downtime?"
+  hint="Think about redundancy, replicated state, and eliminating single points of failure."
+  answer="**High availability design:**\n- **Clustered Frontier with consensus (Raft/Paxos/ZooKeeper):** Leader election; state changes appended to a replicated log.\n- **Durable persistence:** Persist the replicated log to durable storage.\n- **Periodic snapshots:** Recover by loading the last snapshot and replaying the log.\n- **Client resilience:** Agents backoff/retry while Frontier recovers."
+/>
+
+<InterviewQuestion
+  level="senior"
+  question="Major sites deploy anti-crawling mechanisms. If our crawler is being blocked, what multi-faceted strategy would you develop?"
+  hint="Consider IPs, request patterns, identification, headless browsers, and non-technical options."
+  answer="**Layered approach:**\n- **Politeness first:** Strict robots.txt adherence and conservative rates.\n- **Distributed egress IPs:** Rotate across regions/clouds to avoid single-range blocks.\n- **Mimic human behavior:** Rotate user-agents; vary headers; add jitter; adapt delays to host responsiveness.\n- **Selective headless rendering:** Use Puppeteer/Playwright only for high-value targets.\n- **Partnerships/APIs:** Prefer official data access for critical sites."
+/>
+
+<InterviewQuestion
+  level="senior"
+  question="Estimate monthly operational costs (bandwidth, compute, storage) to crawl 1 billion pages. State assumptions and identify the largest expense."
+  hint="Break down storage, bandwidth, and compute with assumed prices."
+  answer="**Assumptions:**\n- Avg page size: 500 KB\n- Storage: ~$0.02/GB-month; Bandwidth: ~$0.08/GB; Compute: ~$150/server-month\n\n**Storage:** 1B * 500KB = 500TB/month; after 1 year ≈ 6PB → 6,000,000GB * $0.02 ≈ $120k/month.\n**Bandwidth:** 500TB → 500,000GB * $0.08 ≈ $40k/month.\n**Compute:** ~100 servers → ≈ $15k/month.\n\n**Total ≈ $175k/month** after year 1. Largest expenses: storage and bandwidth."
+/>
+
+<InterviewQuestion
+  level="senior"
+  question="What key metrics would you monitor to measure system health, performance, and crawl quality?"
+  hint="Metrics across Frontier, Agents, and crawl quality; beyond CPU/memory."
+  answer="**Frontier/Queue:** Queue sizes by host/priority; queue latency (time in frontier).\n**Agents:** Pages/sec per agent and global; download latency; error rates by HTTP/DNS/timeout.\n**Crawl quality:** New URLs discovered per page; URL/content duplicate rates.\n**System KPIs:** End-to-end URL latency; cost per million pages."
+/>
+
+<InterviewQuestion
+  level="senior"
+  question="If we need to start crawling PDFs and images, what design changes are required? How can the initial design make this easier?"
+  hint="Keep the core workflow content-agnostic; make handlers pluggable."
+  answer="**Design for extensibility:**\n- **Content-agnostic core:** Fetch resource, then dispatch by MIME type.\n- **Dispatcher:** Route by Content-Type to the appropriate handler.\n- **New modules:** Add a PDF extractor (parse text, links) and an image metadata extractor (EXIF, dimensions).\n- **Storage updates:** Store content-specific metadata and choose appropriate storage paths."
+/>
+
+<InterviewQuestion
+  level="senior"
+  question="A Crawler Agent leases a URL and crashes before completion. How do you ensure the URL is not lost and is eventually re-processed?"
+  hint="Two-step processing with leases and ACK to guarantee at-least-once."
+  answer="**Lease (visibility timeout) pattern:**\n- Leasing moves a URL from pending to invisible in-flight for T seconds.\n- On success, the agent sends an ACK to delete it permanently.\n- On crash/timeout, the URL returns to pending for another agent to pick up. Ensures at-least-once processing."
+/>
