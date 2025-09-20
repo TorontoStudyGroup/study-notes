@@ -38,11 +38,11 @@ This is a popular system design interview question. Variants include designing F
 
 1. **Feed Publishing**
 
-![Feed Publishing](./images/ch10/ch11-1.webp)
+![Feed Publishing](./images/ch11/ch11-1.webp)
 
 2. **News Feed Building**
 
-![News Feed Building](./images/ch10/ch11-2.webp)
+![News Feed Building](./images/ch11/ch11-2.webp)
 
 ---
 
@@ -67,7 +67,7 @@ Params:
 
 ## Step 3: Deep Dive Design
 
-![System Design Architecture](./images/ch10/ch11-3.webp)
+![System Design Architecture](./images/ch11/ch11-3.webp)
 
 ### (A) Feed Publishing
 
@@ -86,7 +86,7 @@ Params:
 | Pull Fanout       | Good for inactive users, saves CPU   | Slower read latency                           |
 | Hybrid            | Push for normal users, Pull for celebs | Complex logic to split user types           |
 
-![Fanout Models](./images/ch10/ch11-4.avif)
+![Fanout Models](./images/ch11/ch11-4.avif)
 
 ---
 
@@ -99,7 +99,7 @@ Params:
 5. Uses Content/User Cache/CDN to fetch full post data  
 6. Returns final feed JSON to client  
 
-![Feed Retrieval Flow](./images/ch10/ch11-6.avif)
+![Feed Retrieval Flow](./images/ch11/ch11-6.avif)
 
 ---
 
@@ -111,7 +111,7 @@ Params:
 4. **Action Cache**: User interactions (likes, replies, etc.)  
 5. **Counter Cache**: Like count, comment count, followers, etc.  
 
-![Cache Architecture](./images/ch10/ch11-7.avif)
+![Cache Architecture](./images/ch11/ch11-7.avif)
 ---
 
 ## Step 4: Summary & Design Considerations
