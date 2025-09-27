@@ -1,0 +1,210 @@
+---
+sidebar_position: 12
+slug: "/system-design-interview/ch12"
+description: "Chapter 12: DESIGN A CHAT SYSTEM"
+last_update:
+  date: 2025-09-27
+  author: "Nina Wang"
+---
+# Chapter 12: Design a Chat System
+---
+
+## 1. 問題釐清與需求確認  
+在設計聊天系統之前，需要釐清以下需求：  
+- 支援一對一聊天與小型群組聊天（上限 100 人）。  
+- 訊息型態：文字（單則 ≤ 10萬 字元）。  
+- 系統規模：5千萬日活躍用戶。  
+- 訊息需永久保存。  
+- 初期不要求端到端加密。  
+- 功能：多裝置登入、在線狀態、推播通知。  
+
+### 1. Requirements Clarification  
+Before designing the chat system, confirm the requirements:  
+- Support both one-to-one chat and small group chat (up to 100 users).  
+- Message type: text only (≤100,000 characters per message).  
+- Scale: 50 million daily active users (DAU).  
+- Message history must be stored permanently.  
+- End-to-end encryption is not required initially.  
+- Features: multi-device login, presence management, push notifications.  
+
+---
+
+## 2. 高階架構設計  
+系統核心組件：  
+- **Chat servers**：維持 WebSocket 連線，處理即時訊息傳遞。  
+- **Presence servers**：管理在線/離線狀態。  
+- **Push notification servers**：發送離線推播。  
+- **Key-value stores**：儲存聊天訊息。  
+- **API servers**：處理登入、好友清單等非即時功能。  
+
+傳輸模式：  
+- 發送端使用 HTTP (keep-alive)。  
+- 接收端依靠 WebSocket 由伺服器主動推送訊息。  
+
+### 2. High-Level Architecture  
+Core system components:  
+- **Chat servers**: Maintain WebSocket connections for real-time messaging.  
+- **Presence servers**: Manage online/offline status.  
+- **Push notification servers**: Send push notifications to offline users.  
+- **Key-value stores**: Store chat history.  
+- **API servers**: Handle login, profiles, and friend lists.  
+
+Communication model:  
+- Sender → server via HTTP (keep-alive).  
+- Server → receiver via WebSocket for real-time delivery.  
+
+---
+
+## 3. 協定比較  
+- **Polling**：定時詢問，效率低。  
+- **Long Polling**：伺服器保持連線直到有訊息，再回應；回應後連線必須關閉（HTTP 限制）。  
+- **WebSocket**：一次握手後可建立持久雙向連線，延遲最低。  
+
+補充：Long Polling 必須關閉連線，因為 HTTP 協定是一次請求/回應。  
+
+### 3. Protocol Comparison  
+- **Polling**: Periodic requests; inefficient.  
+- **Long Polling**: Server holds the request until a message is available, then responds. The connection must close afterward due to HTTP’s request/response model.  
+- **WebSocket**: Establishes a persistent, full-duplex connection after a single handshake, providing minimal latency.  
+
+Note: Long Polling must close the connection because HTTP inherently allows only one request per response.  
+
+---
+
+## 4. 資料儲存設計  
+- **用戶資料**：關聯式資料庫（分片 + 複製）。  
+- **訊息資料**：Key-Value Store（如 HBase、Cassandra）。  
+
+### 分片 (Sharding)  
+- 水平切分資料，分散到多個資料庫節點。  
+- 常見方式：範圍分片、雜湊分片、目錄分片。  
+- 群組聊天常用 channel_id 作為分片鍵，以確保同群組訊息在同一 shard。  
+- 每個 shard 通常有多副本以提升可靠性。  
+
+### 4. Data Storage Design  
+- **User data**: Relational databases with sharding and replication.  
+- **Messages**: Key-value stores (e.g., HBase, Cassandra).  
+
+### Sharding  
+- Horizontally partition data across multiple database nodes.  
+- Common methods: range-based, hash-based, directory-based.  
+- Group chats typically shard by `channel_id` to keep all group messages in the same shard.  
+- Each shard usually has replicas for high availability.  
+
+---
+
+## 5. 訊息 ID 生成策略  
+- **Global Sequence**：如 Snowflake，系統全域唯一，但需要協調。  
+- **Local Sequence**：在單一對話/群組內遞增即可。  
+  - 優點：效能好、簡單、可擴展。  
+  - 缺點：無法跨群組排序。  
+  - 常見 schema：`(channel_id, message_id)`。  
+
+### 5. Message ID Generation  
+- **Global Sequence**: e.g., Snowflake; globally unique but requires coordination.  
+- **Local Sequence**: Incremental within a single conversation or group.  
+  - Pros: efficient, simple, scalable.  
+  - Cons: cannot provide global ordering across groups.  
+  - Common schema: `(channel_id, message_id)`.  
+
+---
+
+## 6. 訊息傳遞流程  
+**一對一聊天**：  
+1. 發送者 → Chat Server。  
+2. 生成 message_id。  
+3. 存入 KV store 與同步佇列。  
+4. 接收者在線 → WebSocket 傳送。  
+5. 接收者離線 → 推播通知。  
+
+**群組聊天**：  
+- 訊息存為 `(channel_id, message_id)`。  
+- 透過 Chat Server 或 Pub/Sub 系統 fanout 給成員。  
+- 在線成員透過 WebSocket 即時接收。  
+- 離線成員上線時同步歷史訊息。  
+
+### 6. Message Delivery Flow  
+**One-to-one chat**:  
+1. Sender → Chat Server.  
+2. Message ID generated.  
+3. Stored in KV store and sync queue.  
+4. Online receiver → delivered via WebSocket.  
+5. Offline receiver → push notification sent.  
+
+**Group chat**:  
+- Stored as `(channel_id, message_id)`.  
+- Distributed via Chat Server or Pub/Sub.  
+- Online members get real-time WebSocket delivery.  
+- Offline members sync messages on reconnection.  
+
+---
+
+## 7. Fanout 技術  
+- **伺服器直接推送**：小群組。  
+- **Pub/Sub 模型**：中型群組。  
+- **Lazy Fanout**：大型群組。  
+
+實務系統多採混合策略，例如 Slack 用 Pub/Sub，Discord 小群組即時推送，大群組 Lazy Fanout。  
+
+### 7. Fanout Techniques  
+- **Server direct push**: For small groups.  
+- **Pub/Sub model**: For medium-sized groups.  
+- **Lazy fanout**: For large groups.  
+
+In practice, hybrid approaches are common. For example, Slack uses Pub/Sub, while Discord pushes small groups in real time but applies lazy fanout to large communities.  
+
+---
+
+## 8. Presence 管理  
+- 客戶端定期傳送 heartbeat。  
+- 若超時未收到 → 標記為離線。  
+- 狀態變化透過 Pub/Sub 廣播。  
+- 大型群組避免全量廣播，僅進群或刷新時查詢。  
+
+### 8. Presence Management  
+- Clients periodically send heartbeat signals.  
+- If no heartbeat within the threshold → mark offline.  
+- Status updates broadcast via Pub/Sub.  
+- Large groups avoid full broadcasts, checking presence only on entry or refresh.  
+
+---
+
+## 9. 系統可靠性與延伸設計  
+- **Service Discovery**：ZooKeeper 幫助選擇最佳伺服器。  
+- **容錯**：伺服器宕機時，自動重新連線。  
+- **訊息重送**：透過 retry 與 queue 確保可靠性。  
+
+延伸功能：  
+- 支援媒體訊息（壓縮、雲端存儲、縮圖）。  
+- 端到端加密（WhatsApp 模型）。  
+- 用戶端快取。  
+- 全球分散式快取（如 Slack）。  
+
+### 9. Reliability and Extensions  
+- **Service Discovery**: ZooKeeper helps route clients to optimal servers.  
+- **Fault Tolerance**: Clients reconnect automatically if servers fail.  
+- **Message Retries**: Retry and queues ensure reliability.  
+
+Extensions:  
+- Media support (compression, cloud storage, thumbnails).  
+- End-to-end encryption (WhatsApp model).  
+- Client-side caching.  
+- Geo-distributed caching (e.g., Slack).  
+
+---
+
+## 10. 總結  
+- WebSocket 是核心技術，Long Polling 僅為過渡。  
+- Long Polling 必須關閉連線，因為 HTTP 限制。  
+- Fanout 是群組訊息的核心，根據群組大小選擇策略。  
+- Local Sequence 符合聊天應用需求，避免全域協調。  
+- Sharding 是大規模訊息系統的必備設計。  
+- 系統需兼顧低延遲、可擴展性與可靠性。  
+
+### 10. Summary  
+- WebSocket is the backbone of real-time chat; Long Polling is only a workaround.  
+- Long Polling connections must close due to HTTP limitations.  
+- Fanout is essential for group messaging, with strategies chosen by group size.  
+- Local Sequence fits chat use cases, avoiding global coordination.  
+- Sharding is critical for scaling large-scale messaging systems.  
+- The design must balance low latency, scalability, and reliability.  
