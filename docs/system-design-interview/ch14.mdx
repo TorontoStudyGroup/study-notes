@@ -1,0 +1,251 @@
+---
+sidebar_position: 14
+slug: "/system-design-interview/ch14"
+description: "Chapter 14: Design YouTube"
+last_update:
+  date: 2025-10-25
+  author: "Jay Hsia"
+---
+
+import InterviewQuestion from "@site/src/components/InterviewQuestion";
+
+# Chapter 14: Design YouTube
+
+<details>
+  <summary>What is a YouTube?</summary>
+
+YouTube is a video-sharing platform that allows users to upload, view, and share videos.
+
+</details>
+
+---
+
+## Problem Clarification & Scope Definition
+
+### Clarification Questions
+
+| Question                      | Example Answer                 |
+| ----------------------------- | ------------------------------ |
+| What’s the primary focus?     | Video upload and playback      |
+| Device types supported?       | Web, mobile app, smart TVs     |
+| Are users global?             | Yes, worldwide audience        |
+| Video duration or size limit? | 1 GB max per upload            |
+| Use cloud providers?          | Yes (AWS/GCP/Azure acceptable) |
+
+---
+
+## High-Level Requirements & Goals
+
+### Functional Requirements
+
+- Upload videos
+- Store and process video files
+- Stream videos efficiently to users
+- Serve multiple video qualities (e.g., 240p → 1080p)
+- Secure content access
+- Support recommendation and metadata search
+
+### Non-Functional Requirements
+
+- Highly scalable
+- Globally available
+- Fault-tolerant
+- Secure and cost-efficient
+- Smooth playback with adaptive streaming
+
+---
+
+## Back-of-the-Envelope Estimation
+
+Given assumptions:
+
+- Daily Active Users (DAU): 5 million
+- 10% upload one 300 MB video per day
+- Average user watches 5 videos/day
+
+### Compute storage and bandwidth estimates
+
+**Uploads:**
+
+```
+5M × 10% × 300 MB = 150 TB/day
+```
+
+**CDN outgoing traffic (for playback):**
+
+```
+5M × 5 × 300 MB = 7.5 PB/day
+```
+
+**Storage cost (if 1 TB ≈ $20/month):**
+
+```
+~$3,000/day for raw storage, excluding redundancy
+```
+
+**CDN egress cost (~$0.02/GB):**
+
+```
+150,000 × $0.02 = $150,000/day
+```
+
+> ⚡ **Key insight:** CDN cost dominates operational expenses — optimizing it is crucial for cost efficiency.
+
+---
+
+## High-Level System Architecture
+
+### Core Components Overview
+
+1. **Client (Web/Mobile)** — Video upload & playback interface
+2. **API Gateway / Load Balancer** — Routes requests to backend microservices
+3. **Application Servers** — Handle metadata, authentication, user requests
+4. **Metadata Database + Cache** — Store video metadata (title, description, owner, tags, duration)
+5. **Object Storage (Blob Storage)** — Store raw and processed videos (e.g., AWS S3, Google Cloud Storage)
+6. **Transcoding Service** — Converts raw uploads into multiple formats/resolutions
+7. **CDN (Content Delivery Network)** — Cache videos near end-users
+8. **Message Queues** — Orchestrate asynchronous operations (upload → transcode → CDN sync)
+
+---
+
+## Video Upload
+
+### Step-by-Step Flow
+
+1. User uploads a video via pre-signed URL → stored temporarily in **Raw Storage**
+2. Upload metadata (title, size, etc.) sent to **API Server**
+3. Upload event triggers a message in the **transcoding queue**
+4. **Transcoding Service** fetches the original file → generates multiple resolutions
+5. Processed videos stored in **Transcoded Storage**
+6. CDN caches the newest version
+7. Completion handler updates video status in **Metadata DB**
+
+### Core Components
+
+| Component                     | Purpose                                                      |
+| ----------------------------- | ------------------------------------------------------------ |
+| **Upload Service**            | Handles pre-signed URLs, access control                      |
+| **Message Queue (Kafka/SQS)** | Connects upload → transcoding asynchronously                 |
+| **Transcoding Worker Pool**   | Dynamically scalable workers (using Kubernetes or AWS Batch) |
+| **Completion Handler**        | Metadata update; triggers email/notification                 |
+
+> 💡 **Interview Expansion:**
+>
+> - How do you ensure video integrity during upload?
+> - How to support resumable uploads (especially on mobile)?
+> - How would you handle upload retry or failure?
+
+---
+
+## Video Streaming Architecture
+
+### Playback Flow
+
+1. User requests playback → API returns video metadata
+2. Player fetches the **stream manifest** (m3u8/DASH format)
+3. CDN delivers video chunks sequentially (e.g., 4s segments)
+4. Client dynamically switches bitrate according to network conditions
+
+### Key Streaming Protocols
+
+- **HLS (HTTP Live Streaming)**
+- **MPEG-DASH**
+- **Smooth Streaming**
+
+### CDN Strategies
+
+- Cache popular videos near users
+- Regional PoPs (Points of Presence)
+- Push/pull hybrid cache invalidation
+- Cache miss fallback → fetch from transcoded storage
+
+---
+
+## Video Transcoding System (DAG Architecture)
+
+<details>
+  <summary>Why do we need transcoding?</summary>
+
+- Multiple device compatibility
+- Adaptive bitrate support
+- Save space & optimize performance
+
+</details>
+
+### Typical Output Formats
+
+| Resolution | Codec | Approx. Bitrate |
+| ---------- | ----- | --------------- |
+| 240p       | H.264 | 400 Kbps        |
+| 480p       | H.264 | 1 Mbps          |
+| 720p       | H.264 | 2.5 Mbps        |
+| 1080p      | H.264 | 5 Mbps          |
+
+### DAG (Directed Acyclic Graph)
+
+Used to model transcoding jobs:
+
+- **Nodes:** Independent transcoding tasks (e.g., thumbnail generation, encoding, watermarking)
+- **Edges:** Dependency links
+- Enables parallel processing and recovery from partial failure
+
+### Tools & Frameworks
+
+- _FFmpeg_, _AWS Elastic Transcoder_, _GCP Transcoder API_
+- Workflow orchestration via _Airflow_, _Celery_, or _Kubernetes Jobs_
+
+---
+
+## Optimization
+
+### Performance Optimization
+
+- **Chunked uploads** for resume support
+- **Parallel transcoding** by partitioning video
+- **Pre-computed thumbnails** for faster UI rendering
+- **CDN tier caching** (regional + global levels)
+
+### Security Optimization
+
+- **Pre-signed URLs** for controlled upload access
+- **Encrypted HLS (AES-128)** or DRM (Widevine, PlayReady)
+- **Token-based access** for temporary playback
+- **Digital watermarking** for copyright tracking
+
+### Cost Optimization
+
+- Cold storage for infrequently watched videos
+- Adaptive transcoding based on video popularity
+- CDN cache-tier retention policy tuning
+- Batch processing during off-peak cloud hours
+
+---
+
+## Fault Tolerance & Scalability
+
+| Component               | Failure Handling                     |
+| ----------------------- | ------------------------------------ |
+| **Upload Service**      | Retry policy + checkpointed resume   |
+| **Transcoding Workers** | Retries + job requeueing             |
+| **Metadata DB**         | Master-slave replication, failover   |
+| **Cache Layer**         | Data eviction & hot-node rebalancing |
+| **Queue System**        | Idempotent message processing        |
+
+### Horizontal Scalability
+
+- Stateless API servers → easy scale-out
+- Video storage → partition by videoID prefix
+- Transcoding → serverless or containerized scaling
+- CDN → distributed POPs for global reach
+
+---
+
+## Summary
+
+- Reliable uploads
+- Efficient, DAG-based transcoding
+- Cost-effective global delivery via CDNs
+- Adaptive streaming and smart caching
+- Resilient queues for asynchronous workflows
+- Iterate with metrics to balance quality, latency, and spend
+
