@@ -175,3 +175,50 @@ file revisions
         - a client must connect to the metadata server to download the latest changes
         - a response is received or connection timeout is reached ->  a new request to keep the connection open
     - **Save storage space**
+      - De-duplicate data blocks
+        - Eliminating redundant blocks at the account level
+        - Two blocks are identical if they have the same hash value
+      - Adopt an intelligent data backup strategy
+        - Set a limit: a limit for the number of versions to store
+        - Keep valuable versions only:
+          - limit the number of saved versions
+          - give more weight to recent versions
+          - Moving infrequently used data to cold storage -> Amazon S3 glacier -> cheaper
+    - **Failure Handling**
+      - Load balancer failure
+        - If a load balancer fails, the secondary would become active and pick up the traffic
+        - monitor each other using a heartbeat
+        - if it has not sent a heartbeat for some time -> failed
+      - Block server failure
+        - If a block server fails, other servers pick up unfinished or pending jobs
+      - Cloud storage failure
+        - S3 buckets are replicated multiple times in different regions
+        - not available in one region -> can be fetched from different regions
+      - API server failure
+        - a stateless service
+        - if fails -> the traffic is redirected to other API servers by a load balancer
+      - Metadata cache failure
+        - are replicated multiple times
+        - if fails -> access other nodes to fetch data
+        - bring up a new cache server to replace the failed one
+      - Metadata DB failure
+        - Master down
+          - promote one of the slaves to act as a new master and bring up a new slave node
+        - Slave down
+          - use another slave for read operations 
+          - bring another database server to replace the failed one
+      - Notification service failure
+        - Even though one server can keep many open connections, it cannot reconnect all the lost connections at once.
+        - Reconnecting with all the lost clients is a relatively slow process
+      - Offline backup queue failure
+        - Queues are replicated multiple times. 
+        - If one queue fails, consumers of the queue may need to re-subscribe to the backup queue.
+
+## Wrap up
+- In our design, a file is
+transferred to block servers first, and then to the cloud storage
+  - drawbacks
+    - the same chunking, compression, and encryption logic must be implemented on different platforms (iOS, Android, Web)-> It is error-prone and requires a lot of engineering effort
+    - as a client can easily be hacked or manipulated, implementing encrypting logic on the client side is not ideal
+- presence service (online/offline)
+  - by moving presence service out of notification servers -> online/offline functionality can easily be integrated by other services
